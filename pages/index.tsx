@@ -1,19 +1,49 @@
-import useSWR from 'swr'
-import Person from '../components/Person'
-
-const fetcher = (url) => fetch(url).then((res) => res.json())
+import { useState } from "react";
 
 export default function Index() {
-  const { data, error } = useSWR('/api/people', fetcher)
+  const [url, setUrl] = useState("");
+  const [data, setData] = useState("");
+  const [fetching, setFetching] = useState(false);
 
-  if (error) return <div>Failed to load</div>
-  if (!data) return <div>Loading...</div>
+  const handleFetch = async () => {
+    if (fetching) return;
+    setFetching(true);
+    try {
+      const res: any = await fetch(`/api/analyze?url=${url}`).then((res) =>
+        res.json()
+      );
+      if (res?.url) {
+        setData(res.url);
+        setFetching(false);
+      }
+    } catch {
+      setFetching(false);
+    }
+  };
 
   return (
-    <ul>
-      {data.map((p, i) => (
-        <Person key={i} person={p} />
-      ))}
-    </ul>
-  )
+    <div>
+      <input
+        value={url}
+        type="text"
+        onSubmit={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          handleFetch();
+        }}
+        onChange={(e) => setUrl(e.target.value)}
+      />
+      <button
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          handleFetch();
+        }}
+      >
+        get
+      </button>
+      {fetching && <p>this may take serveral minutes</p>}
+      <img src={data} alt="" />
+    </div>
+  );
 }

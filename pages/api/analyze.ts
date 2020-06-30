@@ -1,5 +1,9 @@
-import { people } from '../../../data'
+import { NextApiHandler } from "next";
+import { run } from "../../service/pptr";
 
-export default function handler(req, res) {
-  res.status(200).json(people)
-}
+const handler: NextApiHandler = async (req, res) => {
+  const img = await run(req.query.url as string);
+  res.status(200).json({ url: img });
+};
+
+export default handler;

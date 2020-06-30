@@ -4,6 +4,12 @@ import type { Node, Link } from "./service/pptr";
 declare global {
   interface Window {
     d3: typeof D3;
-    data: { title: string; nodes: Node[]; links: Link[]; medias: string[] };
+    data: {
+      title: string;
+      file: string;
+      nodes: Node[];
+      links: Link[];
+      medias: string[];
+    };
   }
 }

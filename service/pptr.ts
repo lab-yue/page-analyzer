@@ -1,6 +1,7 @@
-import puppeteer, { LaunchOptions } from "puppeteer";
+import puppeteer, { Browser } from "puppeteer";
 import path from "path";
-import { max } from "d3";
+import fs from "fs";
+import { v2 as cloudinary } from "cloudinary";
 
 export type Node = {
   x?: number;
@@ -16,8 +17,40 @@ export type Node = {
 
 export type Link = { source: number; target: number };
 
-export const run = async (url: string, options?: LaunchOptions) => {
-  const browser = await puppeteer.launch(options);
+let browserCache: Browser | undefined;
+
+export const run = async (url: string): Promise<string | undefined> => {
+  if (!process.env.CLOUDINARY_URL) {
+    throw new Error("no env");
+  }
+  console.log(process.env.CLOUDINARY_URL);
+  if (typeof url !== "string") return;
+  if (!url.startsWith("https://")) {
+    url = `https://` + url;
+  }
+  const filename = url.replace(/[^a-zA-Z]+/g, "-").replace(/-$/, "");
+  const file = path.join("/tmp/", `${filename}-tmp.png`);
+  const fileDone = path.join("/tmp/", `${filename}.png`);
+  try {
+    const url: string | undefined = await new Promise((res) => {
+      cloudinary.api.resource(filename, (error, result) => {
+        if (result) {
+          console.log("exist!");
+          res(result.secure_url);
+        } else {
+          res(undefined);
+        }
+      });
+    });
+    if (url) return url;
+  } catch {}
+  let browser = browserCache;
+  if (!browser) {
+    browser = await puppeteer.launch({
+      headless: true,
+      args: ["--disable-web-security"],
+    });
+  }
 
   let page = await browser.newPage();
   await page.setBypassCSP(true);
@@ -235,7 +268,16 @@ export const run = async (url: string, options?: LaunchOptions) => {
         }
       }
     }
-    Object.values({ ...fontStyles, ...boxStyles }).forEach((style) => {
+    Object.values(fontStyles).forEach((style) => {
+      style.to.forEach((to) => {
+        links.push({
+          source: style.from,
+          target: to,
+        });
+      });
+    });
+
+    Object.values(boxStyles).forEach((style) => {
       style.to.forEach((to) => {
         links.push({
           source: style.from,
@@ -246,19 +288,28 @@ export const run = async (url: string, options?: LaunchOptions) => {
 
     return { nodes, links, medias };
   });
-  await page.screenshot({ fullPage: true, path: "./pic.png" });
+  const base64 = await page.screenshot({ fullPage: true, encoding: "base64" });
 
   const pathToHtml = path.join(__dirname, `../render.html`);
   page = await browser.newPage();
-  await page.goto(`file:${pathToHtml}`, { waitUntil: "networkidle0" });
+  await page.goto(`http://localhost:3000/render.html`, {
+    waitUntil: "networkidle0",
+  });
   await page.setViewport({ width: 2400, height: 1000 });
 
   await page.addScriptTag({
     content: `window.data=${JSON.stringify({
       title: `url: ${url} <br> time: ${new Date().toISOString()}`,
+      file: `data:image/png;base64,` + base64,
       ...data,
     })};
   `,
+  });
+
+  await page.evaluate(async () => {
+    const img = document.querySelector("img")!;
+    img.src = window.data.file;
+    return new Promise((res) => (img.onload = res));
   });
 
   await page.evaluate(() => {
@@ -423,14 +474,25 @@ export const run = async (url: string, options?: LaunchOptions) => {
   });
   await page.screenshot({
     fullPage: true,
-    path: `./${url.replace(/[^a-zA-Z]+/g, "-").replace(/-$/, "")}.png`,
+    path: fileDone,
   });
-
-  // console.log(JSON.stringify(data, null, 4));
-  // await browser.close();
+  return new Promise((res, rej) => {
+    cloudinary.uploader.upload(
+      fileDone,
+      {
+        public_id: filename,
+        overwrite: true,
+      },
+      (error, result) => {
+        if (error) {
+          rej(error);
+          return;
+        }
+        try {
+          fs.unlinkSync(fileDone);
+        } catch {}
+        res(result?.secure_url);
+      }
+    );
+  });
 };
-
-run("http://taotajima.jp", {
-  headless: false,
-  args: ["--disable-web-security"],
-});
