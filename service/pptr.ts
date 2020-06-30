@@ -1,4 +1,5 @@
-import puppeteer, { Browser } from "puppeteer";
+import puppeteer, { Browser } from "puppeteer-core";
+import chrome from "chrome-aws-lambda";
 import path from "path";
 import fs from "fs";
 import { v2 as cloudinary } from "cloudinary";
@@ -54,8 +55,9 @@ export const run = async (url: string): Promise<string | undefined> => {
   let browser = browserCache;
   if (!browser) {
     browser = await puppeteer.launch({
-      headless: true,
-      args: ["--disable-web-security"],
+      args: ["--disable-web-security",...chrome.args],
+      executablePath: await chrome.executablePath,
+      headless: chrome.headless,
     });
   }
 
