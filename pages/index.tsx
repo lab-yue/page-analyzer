@@ -12,8 +12,8 @@ export default function Index() {
       const res: any = await fetch(
         `https://e85qx3bjrb.execute-api.us-east-1.amazonaws.com/dev/analyze?url=${url}`
       ).then((res) => res.json());
-      if (res?.url) {
-        setData(res.url);
+      if (res?.img) {
+        setData(res.img);
         setFetching(false);
       }
     } catch {
