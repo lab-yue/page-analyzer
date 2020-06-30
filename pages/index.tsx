@@ -9,9 +9,9 @@ export default function Index() {
     if (fetching) return;
     setFetching(true);
     try {
-      const res: any = await fetch(`/api/analyze?url=${url}`).then((res) =>
-        res.json()
-      );
+      const res: any = await fetch(
+        `https://e85qx3bjrb.execute-api.us-east-1.amazonaws.com/dev/analyze?url=${url}`
+      ).then((res) => res.json());
       if (res?.url) {
         setData(res.url);
         setFetching(false);

@@ -8,18 +8,10 @@
     "start": "next start"
   },
   "dependencies": {
-    "@types/d3": "^5.7.2",
-    "@types/puppeteer": "^3.0.1",
-    "@types/puppeteer-core": "^2.0.0",
-    "add": "^2.0.6",
-    "chrome-aws-lambda": "^3.1.1",
-    "cloudinary": "^1.22.0",
     "next": "latest",
-    "puppeteer-core": "^4.0.1",
     "react": "^16.8.6",
     "react-dom": "^16.8.6",
-    "swr": "0.1.18",
-    "yarn": "^1.22.4"
+    "swr": "0.1.18"
   },
   "license": "ISC",
   "devDependencies": {

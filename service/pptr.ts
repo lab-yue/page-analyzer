@@ -1,7 +1,6 @@
 import puppeteer, { Browser } from "puppeteer-core";
 import chrome from "chrome-aws-lambda";
 import path from "path";
-import fs from "fs";
 import { v2 as cloudinary } from "cloudinary";
 
 export type Node = {
@@ -24,7 +23,6 @@ export const run = async (url: string): Promise<string | undefined> => {
   if (!process.env.CLOUDINARY_URL) {
     throw new Error("no env");
   }
-  console.log(process.env.CLOUDINARY_URL);
   if (typeof url !== "string") return;
   if (!url.startsWith("https://")) {
     url = `https://` + url;
@@ -35,7 +33,7 @@ export const run = async (url: string): Promise<string | undefined> => {
     const url: string | undefined = await new Promise((res) => {
       try {
         cloudinary.api
-          .resource(filename, (error, result) => {
+          .resource(filename, (_, result) => {
             if (result) {
               console.log("exist!");
               res(result.secure_url);
@@ -299,9 +297,9 @@ export const run = async (url: string): Promise<string | undefined> => {
   });
   const base64 = await page.screenshot({ fullPage: true, encoding: "base64" });
 
-  const pathToHtml = path.join(__dirname, `../render.html`);
   page = await browser.newPage();
-  await page.goto(`http://localhost:3000/render.html`, {
+  await page.setBypassCSP(true);
+  await page.goto(`https://page-analyzer.vercel.app/render.html`, {
     waitUntil: "networkidle0",
   });
   await page.setViewport({ width: 2400, height: 1000 });
@@ -360,9 +358,8 @@ export const run = async (url: string): Promise<string | undefined> => {
 
     const { nodes, links } = window.data;
 
-    const simulation = window.d3
+    window.d3
       .forceSimulation()
-
       .nodes(nodes)
       .force("charge", window.d3.forceManyBody())
       .force("link", window.d3.forceLink(links).distance(100))
@@ -497,9 +494,6 @@ export const run = async (url: string): Promise<string | undefined> => {
           rej(error);
           return;
         }
-        try {
-          fs.unlinkSync(fileDone);
-        } catch {}
         res(result?.secure_url);
       }
     );
