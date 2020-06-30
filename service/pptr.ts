@@ -22,12 +22,35 @@ export const run = async (url: string, options?: LaunchOptions) => {
   let page = await browser.newPage();
   await page.setBypassCSP(true);
   await page.setViewport({ width: 1400, height: 1000 });
-  await page.goto(url, { waitUntil: "domcontentloaded" });
+  await page.goto(url, { waitUntil: "networkidle2" });
   await page.waitFor(1000);
   // await browser.close();
   const data = await page.evaluate(() => {
     const fontStyles: Record<string, { from: number; to: number[] }> = {};
     const is = <T>(_: unknown, y: boolean): _ is T => y;
+
+    function isInView({
+      top,
+      left,
+      // bottom,
+      right,
+    }: {
+      top: number;
+      left: number;
+      bottom: number;
+      right: number;
+    }) {
+      return (
+        top >= 0 &&
+        left >= 0 &&
+        // bottom && // not check this one
+        // bottom <=
+        //   (window.innerHeight ||
+        //     document.documentElement
+        //       .clientHeight) &&
+        right <= (window.innerWidth || document.documentElement.clientWidth)
+      );
+    }
 
     const nodes: Node[] = [];
 
@@ -66,7 +89,14 @@ export const run = async (url: string, options?: LaunchOptions) => {
               y, // format
               width, // format
               height, // format
+              top,
+              left,
+              bottom,
+              right,
             } = el.getBoundingClientRect();
+            if (!isInView({ top, left, bottom, right })) {
+              continue;
+            }
             const fx = 500 + (x + width / 2) ?? -200;
             const fy = 200 + (y + height / 2);
             nodes.push({
@@ -93,7 +123,15 @@ export const run = async (url: string, options?: LaunchOptions) => {
                 from: nodes.length - 1,
                 to: [nodes.length - 2],
               };
-              fontLabelY += (text.split("\n").length + 3) * 20;
+              const lines = text.split("\n");
+              fontLabelY +=
+                (lines.reduce(
+                  (acc, curr) => acc + Math.floor(curr.length / 40),
+                  0
+                ) +
+                  lines.length +
+                  3) *
+                20;
             }
           }
         }
@@ -114,7 +152,7 @@ export const run = async (url: string, options?: LaunchOptions) => {
 
     return { nodes, links };
   });
-  // await page.waitFor(20000);
+  await page.waitFor(5000);
   await page.screenshot({ fullPage: true, path: "./pic.png" });
 
   const pathToHtml = path.join(__dirname, `../render.html`);
@@ -185,8 +223,8 @@ export const run = async (url: string, options?: LaunchOptions) => {
       .data(links)
       .enter()
       .append("line")
-      .attr("stroke", "#000")
-      .attr("stroke-width", 1);
+      .attr("stroke", "yellow")
+      .attr("stroke-width", 1.5);
 
     let node = svg
       .append("g")
@@ -202,7 +240,7 @@ export const run = async (url: string, options?: LaunchOptions) => {
       .append("circle")
       .attr("data-x", (d: any) => d.text)
       .attr("r", 8)
-      .attr("stroke", "black")
+      .attr("stroke", "yellow")
       .attr("fill", "#fff")
       .attr("fill-opacity", 0.5);
 
@@ -259,10 +297,10 @@ export const run = async (url: string, options?: LaunchOptions) => {
   await page.screenshot({ fullPage: true, path: "./done.png" });
 
   // console.log(JSON.stringify(data, null, 4));
-  // await browser.close();
+  await browser.close();
 };
 
-run("https://www.google.com", {
+run("https://video.unext.jp/", {
   headless: false,
   args: ["--disable-web-security"],
 });
