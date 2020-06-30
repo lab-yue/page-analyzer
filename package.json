@@ -2,7 +2,7 @@
   "name": "api-routes",
   "version": "1.0.0",
   "scripts": {
-    "pptr": "ts-node service/pptr.ts",
+    "pptr": "ts-node --files service/pptr.ts",
     "dev": "next",
     "build": "next build",
     "start": "next start"

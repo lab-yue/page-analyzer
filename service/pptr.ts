@@ -1,75 +1,38 @@
 import puppeteer, { LaunchOptions } from "puppeteer";
+import path from "path";
+
+export type Node = {
+  x?: number;
+  y?: number;
+  fx?: number;
+  fy?: number;
+  width?: number;
+  height?: number;
+  selector?: string;
+  name: string;
+  font?: Record<string, string>;
+  text?: string;
+};
+
+export type Link = { source: number; target: number };
 
 export const run = async (url: string, options?: LaunchOptions) => {
   const browser = await puppeteer.launch(options);
 
-  const page = await browser.newPage();
+  let page = await browser.newPage();
   await page.setBypassCSP(true);
   await page.setViewport({ width: 1400, height: 1000 });
   await page.goto(url, { waitUntil: "domcontentloaded" });
   await page.waitFor(1000);
-
-  await page.addScriptTag({ url: `https://d3js.org/d3.v5.min.js` });
-  await page.addStyleTag({
-    content: `text {
-       pointer-events: none;
-       font-size: 18px;
-     }`,
-  });
   // await browser.close();
   const data = await page.evaluate(() => {
-    const body = document.body;
-    const html = document.documentElement;
-
-    const maxHeight = Math.max(
-      body.scrollHeight,
-      body.offsetHeight,
-      html.clientHeight,
-      html.scrollHeight,
-      html.offsetHeight
-    );
-
-    const svg = window.d3
-      .select("body")
-      .append("svg")
-      .style("position", "fixed")
-      .style("top", 0)
-      .style("left", 0)
-      .style("z-index", Number.MAX_SAFE_INTEGER.toString())
-      .attr("width", 1400)
-      .attr("height", maxHeight);
-
-    const filter = svg
-      .append("defs")
-      .append("filter")
-      .attr("id", "text-bg")
-      .attr("x", 0)
-      .attr("y", 0)
-      .attr("width", 1)
-      .attr("height", 1);
-    filter.append("feFlood").attr("flood-color", "white");
-    filter
-      .append("feComposite")
-      .attr("in", "SourceGraphic")
-      .attr("operator", "xor");
     const fontStyles: Record<string, { from: number; to: number[] }> = {};
     const is = <T>(_: unknown, y: boolean): _ is T => y;
 
-    const nodes: {
-      x?: number;
-      y?: number;
-      fx?: number;
-      fy?: number;
-      width?: number;
-      height?: number;
-      selector?: string;
-      name: string;
-      font?: Record<string, string>;
-      text?: string;
-    }[] = [];
+    const nodes: Node[] = [];
 
     const links: { source: number; target: number }[] = [];
-
+    let fontLabelY = 200;
     for (const styleSheet of Array.from(document.styleSheets)) {
       const rules = Array.from(styleSheet.cssRules);
       for (const rule of rules) {
@@ -104,8 +67,8 @@ export const run = async (url: string, options?: LaunchOptions) => {
               width, // format
               height, // format
             } = el.getBoundingClientRect();
-            const fx = x + width / 2 ?? 500;
-            const fy = y + height / 2 ?? 500;
+            const fx = 500 + (x + width / 2) ?? -200;
+            const fy = 200 + (y + height / 2);
             nodes.push({
               name: rule.selectorText,
               fx, // format
@@ -114,13 +77,15 @@ export const run = async (url: string, options?: LaunchOptions) => {
               height, // format
               selector: rule.selectorText,
             });
-            const text = JSON.stringify(font);
+            const text = JSON.stringify(font, null, 4)
+              .replace("{\n", "")
+              .replace("\n}", "");
             if (fontStyles[text]) {
               fontStyles[text].to.push(nodes.length - 1);
             } else {
               nodes.push({
-                // x: x + width / 2, // format
-                // y: y + height / 2, // format
+                fx: 2000, // format
+                fy: fontLabelY, // format
                 name: rule.selectorText + `.text`,
                 text,
               });
@@ -128,6 +93,7 @@ export const run = async (url: string, options?: LaunchOptions) => {
                 from: nodes.length - 1,
                 to: [nodes.length - 2],
               };
+              fontLabelY += (text.split("\n").length + 3) * 20;
             }
           }
         }
@@ -146,7 +112,60 @@ export const run = async (url: string, options?: LaunchOptions) => {
       });
     });
 
-    console.log({ nodes, links });
+    return { nodes, links };
+  });
+  // await page.waitFor(20000);
+  await page.screenshot({ fullPage: true, path: "./pic.png" });
+
+  const pathToHtml = path.join(__dirname, `../render.html`);
+  page = await browser.newPage();
+  await page.goto(`file:${pathToHtml}`, { waitUntil: "networkidle0" });
+  await page.setViewport({ width: 2400, height: 1000 });
+
+  await page.addScriptTag({
+    content: `window.data=${JSON.stringify(data)};
+  `,
+  });
+
+  await page.evaluate(() => {
+    const body = document.body;
+    const html = document.documentElement;
+
+    const maxHeight = Math.max(
+      body.scrollHeight,
+      body.offsetHeight,
+      html.clientHeight,
+      html.scrollHeight,
+      html.offsetHeight
+    );
+
+    const svg = window.d3
+      .select("body")
+      .append("svg")
+      .attr("xmlns", "http://www.w3.org/2000/svg")
+      .style("position", "absolute")
+      .style("top", 0)
+      .style("left", 0)
+      .style("z-index", Number.MAX_SAFE_INTEGER.toString())
+      .attr("width", 2400)
+      .attr("height", maxHeight);
+    // use foreignObject instead
+    // const filter = svg
+    //   .append("defs")
+    //   .append("filter")
+    //   .attr("id", "text-bg")
+    //   .attr("x", 0)
+    //   .attr("y", 0)
+    //   .attr("width", 1)
+    //   .attr("height", 1);
+    // filter.append("feFlood").attr("flood-color", "white");
+    // filter
+    //   .append("feComposite")
+    //   .attr("in", "SourceGraphic")
+    //   .attr("operator", "xor");
+
+    const { nodes, links } = window.data;
+
     const simulation = window.d3
       .forceSimulation()
 
@@ -188,23 +207,35 @@ export const run = async (url: string, options?: LaunchOptions) => {
       .attr("fill-opacity", 0.5);
 
     node
-      .append("text")
-      .attr("filter", "url(#text-bg)")
-      .attr("x", 8)
-      .attr("y", "0.31em")
+      .append("foreignObject")
+      .attr("x", 0)
+      .attr("y", 0)
+      .attr("width", 400)
+      .attr("height", 50)
+      .style("overflow", "visible")
+      .append("xhtml:div")
+      .attr("xmlns", "http://www.w3.org/1999/xhtml")
+      .style("width", 400)
+      .style("height", 50)
+      .style("white-space", "pre-line")
+      .style("padding", "10px")
+      .style("font-size", "14px")
+      .style("text-align", "left")
+      .style("transform", "translateY(-10px)")
+      .style("font-size", "16px")
       .text((d: any) => d.text);
     // .attr("stroke", "#fff");
 
-    node
-      .append("text")
-      // .attr("stroke", "black")
-      .attr("fill", "black")
-      // .style("text-anchor", "middle")
-      .attr("x", 8)
-      .attr("y", "0.31em")
-      .text((d: any) => d.text)
-      //   .attr("stroke", "#fff")
-      .attr("stroke-width", 1);
+    // node
+    //   .append("text")
+    //   // .attr("stroke", "black")
+    //   .attr("fill", "black")
+    //   // .style("text-anchor", "middle")
+    //   .attr("x", 8)
+    //   .attr("y", "0.31em")
+    //   .text((d: any) => d.text)
+    //   //   .attr("stroke", "#fff")
+    //   .attr("stroke-width", 1);
 
     function ticked() {
       link
@@ -217,13 +248,18 @@ export const run = async (url: string, options?: LaunchOptions) => {
         return "translate(" + d.x + "," + d.y + ")";
       });
     }
-
-    return nodes;
   });
-  await page.waitFor(20000);
-  await page.screenshot({ fullPage: true, path: "./pic.png" });
-  console.log(JSON.stringify(data, null, 4));
-  await browser.close();
+  await page.waitFor(1000);
+  await page.evaluate(() => {
+    const svg = document.querySelector("svg")!;
+    const bbox = svg.getBBox()!;
+    // Update the width and height using the size of the contents
+    svg?.setAttribute("height", (bbox.y + bbox.height + bbox.y).toString());
+  });
+  await page.screenshot({ fullPage: true, path: "./done.png" });
+
+  // console.log(JSON.stringify(data, null, 4));
+  // await browser.close();
 };
 
 run("https://www.google.com", {
