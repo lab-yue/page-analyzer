@@ -55,7 +55,7 @@ export const run = async (url: string): Promise<string | undefined> => {
   let browser = browserCache;
   if (!browser) {
     browser = await puppeteer.launch({
-      args: ["--disable-web-security",...chrome.args],
+      args: ["--disable-web-security", ...chrome.args],
       executablePath: await chrome.executablePath,
       headless: chrome.headless,
     });
@@ -65,7 +65,7 @@ export const run = async (url: string): Promise<string | undefined> => {
   await page.setBypassCSP(true);
   await page.setViewport({ width: 1400, height: 1000 });
   await page.goto(url, { waitUntil: "networkidle2" });
-  await page.waitFor(5000);
+  await page.waitFor(1000);
   // await browser.close();
 
   const maxHeight = await page.evaluate(() => {
@@ -467,7 +467,7 @@ export const run = async (url: string): Promise<string | undefined> => {
       });
     }
   });
-  await page.waitFor(1000);
+  await page.waitFor(500);
   await page.evaluate(() => {
     document.querySelector("h1")!.innerHTML = window.data.title;
     const ml = document.querySelector("ul")!;
