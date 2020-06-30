@@ -29,19 +29,22 @@ export const run = async (url: string): Promise<string | undefined> => {
     url = `https://` + url;
   }
   const filename = url.replace(/[^a-zA-Z]+/g, "-").replace(/-$/, "");
-  const file = path.join("/tmp/", `${filename}-tmp.png`);
   const fileDone = path.join("/tmp/", `${filename}.png`);
   try {
     const url: string | undefined = await new Promise((res) => {
       try {
-        cloudinary.api.resource(filename, (error, result) => {
-          if (result) {
-            console.log("exist!");
-            res(result.secure_url);
-          } else {
+        cloudinary.api
+          .resource(filename, (error, result) => {
+            if (result) {
+              console.log("exist!");
+              res(result.secure_url);
+            } else {
+              res(undefined);
+            }
+          })
+          .catch(() => {
             res(undefined);
-          }
-        });
+          });
       } catch {
         res(undefined);
       }
