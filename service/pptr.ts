@@ -33,14 +33,18 @@ export const run = async (url: string): Promise<string | undefined> => {
   const fileDone = path.join("/tmp/", `${filename}.png`);
   try {
     const url: string | undefined = await new Promise((res) => {
-      cloudinary.api.resource(filename, (error, result) => {
-        if (result) {
-          console.log("exist!");
-          res(result.secure_url);
-        } else {
-          res(undefined);
-        }
-      });
+      try {
+        cloudinary.api.resource(filename, (error, result) => {
+          if (result) {
+            console.log("exist!");
+            res(result.secure_url);
+          } else {
+            res(undefined);
+          }
+        });
+      } catch {
+        res(undefined);
+      }
     });
     if (url) return url;
   } catch {}
