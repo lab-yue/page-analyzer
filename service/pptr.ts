@@ -1,7 +1,7 @@
 import puppeteer, { Browser } from "puppeteer";
 import path from "path";
-import fs from "fs";
-import { v2 as cloudinary } from "cloudinary";
+// import fs from "fs";
+// import { v2 as cloudinary } from "cloudinary";
 
 export type Node = {
   x?: number;
@@ -28,7 +28,7 @@ export const run = async (url: string): Promise<string | undefined> => {
   if (!url.startsWith("http")) {
     url = `https://` + url;
   }
-  const filename = url.replace(/[^a-zA-Z]+/g, "-").replace(/-$/, "");
+  // const filename = url.replace(/[^a-zA-Z]+/g, "-").replace(/-$/, "");
   // const fileDone = path.join("/tmp/", `${filename}.png`);
   // try {
   //   const url: string | undefined = await new Promise((res) => {
