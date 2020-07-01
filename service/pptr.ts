@@ -20,37 +20,37 @@ export type Link = { source: number; target: number };
 let browserCache: Browser | undefined;
 
 export const run = async (url: string): Promise<string | undefined> => {
-  if (!process.env.CLOUDINARY_URL) {
-    throw new Error("no env");
-  }
-  console.log(process.env.CLOUDINARY_URL);
+  // if (!process.env.CLOUDINARY_URL) {
+  //   throw new Error("no env");
+  // }
+  // console.log(process.env.CLOUDINARY_URL);
   if (typeof url !== "string") return;
-  if (!url.startsWith("https://")) {
+  if (!url.startsWith("http")) {
     url = `https://` + url;
   }
   const filename = url.replace(/[^a-zA-Z]+/g, "-").replace(/-$/, "");
-  const fileDone = path.join("/tmp/", `${filename}.png`);
-  try {
-    const url: string | undefined = await new Promise((res) => {
-      try {
-        cloudinary.api
-          .resource(filename, (error, result) => {
-            if (result) {
-              console.log("exist!");
-              res(result.secure_url);
-            } else {
-              res(undefined);
-            }
-          })
-          .catch(() => {
-            res(undefined);
-          });
-      } catch {
-        res(undefined);
-      }
-    });
-    if (url) return url;
-  } catch {}
+  // const fileDone = path.join("/tmp/", `${filename}.png`);
+  // try {
+  //   const url: string | undefined = await new Promise((res) => {
+  //     try {
+  //       cloudinary.api
+  //         .resource(filename, (error, result) => {
+  //           if (result) {
+  //             console.log("exist!");
+  //             res(result.secure_url);
+  //           } else {
+  //             res(undefined);
+  //           }
+  //         })
+  //         .catch(() => {
+  //           res(undefined);
+  //         });
+  //     } catch {
+  //       res(undefined);
+  //     }
+  //   });
+  //   if (url) return url;
+  // } catch {}
   let browser = browserCache;
   if (!browser) {
     browser = await puppeteer.launch({
@@ -460,7 +460,7 @@ export const run = async (url: string): Promise<string | undefined> => {
         .attr("stroke", "black")
         .attr("stroke-width", 0.5);
 
-      node.attr("transform", function (d) {
+      node.attr("transform", (d) => {
         return "translate(" + d.x + "," + d.y + ")";
       });
     }
@@ -479,27 +479,29 @@ export const run = async (url: string): Promise<string | undefined> => {
     // Update the width and height using the size of the contents
     svg?.setAttribute("height", (bbox.y + bbox.height + bbox.y).toString());
   });
-  await page.screenshot({
+  const b64Url = await page.screenshot({
     fullPage: true,
-    path: fileDone,
+    encoding: "base64",
   });
-  return new Promise((res, rej) => {
-    cloudinary.uploader.upload(
-      fileDone,
-      {
-        public_id: filename,
-        overwrite: true,
-      },
-      (error, result) => {
-        if (error) {
-          rej(error);
-          return;
-        }
-        try {
-          fs.unlinkSync(fileDone);
-        } catch {}
-        res(result?.secure_url);
-      }
-    );
-  });
+
+  return `data:image/png;base64,${b64Url}`;
+  // return new Promise((res, rej) => {
+  //   cloudinary.uploader.upload(
+  //     fileDone,
+  //     {
+  //       public_id: filename,
+  //       overwrite: true,
+  //     },
+  //     (error, result) => {
+  //       if (error) {
+  //         rej(error);
+  //         return;
+  //       }
+  //       try {
+  //         fs.unlinkSync(fileDone);
+  //       } catch {}
+  //       res(result?.secure_url);
+  //     }
+  //   );
+  // });
 };
