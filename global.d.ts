@@ -1,5 +1,5 @@
 import D3 from "d3";
-import type { Node, Link } from "./pptr";
+import type { Node, Link } from "./service/pptr";
 
 declare global {
   interface Window {

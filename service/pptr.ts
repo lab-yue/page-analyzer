@@ -1,6 +1,6 @@
-import puppeteer, { Browser } from "puppeteer-core";
-import chrome from "chrome-aws-lambda";
+import puppeteer, { Browser } from "puppeteer";
 import path from "path";
+import fs from "fs";
 import { v2 as cloudinary } from "cloudinary";
 
 export type Node = {
@@ -23,6 +23,7 @@ export const run = async (url: string): Promise<string | undefined> => {
   if (!process.env.CLOUDINARY_URL) {
     throw new Error("no env");
   }
+  console.log(process.env.CLOUDINARY_URL);
   if (typeof url !== "string") return;
   if (!url.startsWith("https://")) {
     url = `https://` + url;
@@ -33,7 +34,7 @@ export const run = async (url: string): Promise<string | undefined> => {
     const url: string | undefined = await new Promise((res) => {
       try {
         cloudinary.api
-          .resource(filename, (_, result) => {
+          .resource(filename, (error, result) => {
             if (result) {
               console.log("exist!");
               res(result.secure_url);
@@ -53,9 +54,8 @@ export const run = async (url: string): Promise<string | undefined> => {
   let browser = browserCache;
   if (!browser) {
     browser = await puppeteer.launch({
-      args: ["--disable-web-security", ...chrome.args],
-      executablePath: await chrome.executablePath,
-      headless: chrome.headless,
+      headless: true,
+      args: ["--disable-web-security"],
     });
   }
 
@@ -63,7 +63,7 @@ export const run = async (url: string): Promise<string | undefined> => {
   await page.setBypassCSP(true);
   await page.setViewport({ width: 1400, height: 1000 });
   await page.goto(url, { waitUntil: "networkidle2" });
-  await page.waitFor(1000);
+  await page.waitFor(5000);
   // await browser.close();
 
   const maxHeight = await page.evaluate(() => {
@@ -297,9 +297,9 @@ export const run = async (url: string): Promise<string | undefined> => {
   });
   const base64 = await page.screenshot({ fullPage: true, encoding: "base64" });
 
+  const pathToHtml = path.join(__dirname, `../render.html`);
   page = await browser.newPage();
-  await page.setBypassCSP(true);
-  await page.goto(`https://page-analyzer.vercel.app/render.html`, {
+  await page.goto(`http://localhost:3000/render.html`, {
     waitUntil: "networkidle0",
   });
   await page.setViewport({ width: 2400, height: 1000 });
@@ -358,8 +358,9 @@ export const run = async (url: string): Promise<string | undefined> => {
 
     const { nodes, links } = window.data;
 
-    window.d3
+    const simulation = window.d3
       .forceSimulation()
+
       .nodes(nodes)
       .force("charge", window.d3.forceManyBody())
       .force("link", window.d3.forceLink(links).distance(100))
@@ -464,7 +465,7 @@ export const run = async (url: string): Promise<string | undefined> => {
       });
     }
   });
-  await page.waitFor(500);
+  await page.waitFor(1000);
   await page.evaluate(() => {
     document.querySelector("h1")!.innerHTML = window.data.title;
     const ml = document.querySelector("ul")!;
@@ -494,6 +495,9 @@ export const run = async (url: string): Promise<string | undefined> => {
           rej(error);
           return;
         }
+        try {
+          fs.unlinkSync(fileDone);
+        } catch {}
         res(result?.secure_url);
       }
     );
